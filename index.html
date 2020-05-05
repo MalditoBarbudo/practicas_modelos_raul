@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Casos de Estudio. Dinámica de poblaciones</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Víctor Granda" />
+    <script src="libs/header-attrs-2.1/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Casos de Estudio. Dinámica de poblaciones
+## Ejercicios con R
+### Víctor Granda
+### CREAF
+### 2020/05/05 (updated: 2020-05-05)
+
+---
+
+
+# R como herramienta de análisis y modelado
+
+R ([https://cran.r-project.org/](https://cran.r-project.org/)) es un entorno
+de programación estadística y graficado, libre y gratuito.
+
+
+En vez de dialogos como en excel, vamos a tener que programar un *script*
+para que haga los modelos y cálculos que necesitamos.
+
+Una buena (y gratutita) introducción a R para el análisis de datos la podeís
+encontrar en:
+
+R for Data Science (https://r4ds.had.co.nz/)
+
+
+---
+
+# Ejercicio 1
+
+A partir del fichero 'CensoDelta.xls' (colgado en el cv), que contiene el número
+de parejas de gaviota de Audouin (*Larus audouinii*) censadas en el Delta del Ebro
+entre los años 1981 y 2010:
+
+  a. Representar gráficamente el número de parejas en función del tiempo y
+     ajustar la ecuación del modelo exponencial. 
+  
+  b. Calcular la tasa intrínseca de crecimiento poblacional (r) media para todo
+     el período y su desviación estándar.
+     
+&lt;img src="img/gaviota.png" width="533" /&gt;
+
+
+---
+
+# Ejercicio 1
+
+Recordar:
+
+Supongamos que no hay movimientos migratorios (población cerrada):
+
+$$ N_{t+1} = N_t + B + D \Rightarrow \frac{dN}{dt} = B - D $$
+
+Supongamos que las tasas de natalidad y mortalidad son una función lineal del
+tamaño poblacional:
+
+$$ B = \mathit{b}·N $$
+$$ D = \mathit{d}·D $$
+$$ \frac{dN}{dt} = (b - d)·N = \mathbf{r}·N $$
+**r**: tasa instantánea (intrínseca) de crecimiento
+
+---
+
+# Ejercicio 1.
+
+Nos queda una ecuación diferencial de primer orden. Si la resolvemos integrando:
+
+$$ \frac{dN}{dt} = r·N \Rightarrow \int\frac{dN}{N} = \int r·dt \Rightarrow ln(N) = r·t + C$$
+
+si definimos que cuando `\(t = 0 \Rightarrow N = N_0\)`, tenemos que `\(C = ln(N_0)\)` y:  
+
+$$ N_t = N_0·\rm{e}^{rt}$$
+
+---
+
+# Ejercicio 1.
+
+En muchas especies las generaciones son discretas y el modelo continuo no es
+aplicable:
+
+$$ N_{t+1} = \lambda·N_t \Rightarrow N_t = \lambda^t· N_0$$
+
+Cuando el paso de tiempo se hace muy pequeño el modelo discreto converge al
+modelo continuo:
+
+$$ \rm{e}^{rt} = \lambda^t \Leftarrow\Rightarrow r = ln(\lambda)$$
+
+---
+
+# Ejercicio 1.
+
+## ¿Cómo hacemos esto en R?
+
+Lo primero son las librerías que necesitaremos:
+
+```r
+library(readxl)
+library(dplyr)
+```
+
+---
+
+# Ejercicio 1.
+
+Lo segundo es cargar los datos:
+
+```r
+datos_censo &lt;- read_excel("CensoDelta.xls")
+names(datos_censo) &lt;- c('Any', 'Parelles')
+datos_censo$Any &lt;- as.numeric(datos_censo$Any)
+```
+
+```
+## Warning: NAs introducidos por coerción
+```
+
+```r
+datos_censo
+```
+
+```
+## # A tibble: 33 x 2
+##      Any Parelles
+##    &lt;dbl&gt;    &lt;dbl&gt;
+##  1  1981       36
+##  2  1982      200
+##  3  1983      546
+##  4  1984     1200
+##  5  1985     1200
+##  6  1986     2200
+##  7  1987     1850
+##  8  1988     2861
+##  9  1989     4266
+## 10  1990     4300
+## # … with 23 more rows
+```
+
+---
+
+# Ejercicio 1.
+
+&gt;a. Representar gráficamente el número de parejas en función del tiempo y
+    ajustar la ecuación del modelo exponencial:
+   
+
+```r
+# ajustar el modelo:
+modelo_exponencial &lt;- lm(log(Parelles) ~ Any, data = datos_censo)
+# ver los coeficientes
+coef(modelo_exponencial)
+```
+
+```
+##  (Intercept)          Any 
+## -248.3285848    0.1286909
+```
+
+---
+
+# Ejercicio 1.
+
+&gt;a. Representar gráficamente el número de parejas en función del tiempo y
+    ajustar la ecuación del modelo exponencial
+   
+
+```r
+coef(modelo_exponencial)
+```
+
+```
+##  (Intercept)          Any 
+## -248.3285848    0.1286909
+```
+
+Con los coeficientes podemos sacar la ecuación,
+**pero recordar**, hemos transformado la variable `Parejas` mediante el logaritmo
+neperiano a la hora de hacer el modelo, asi pues, la ecuación de nuestro modelo
+exponencial debería ser:
+
+exp(-248.329) ·
+exp(0.129 · t)
+
+que queda como:
+
+`$$1.419·10^{-108} · exp(0.129 · t)$$`
+
+---
+
+# Ejercicio 1.
+
+&gt;a. Representar gráficamente el número de parejas en función del tiempo y
+    ajustar la ecuación del modelo exponencial
+   
+Para graficarlo, usamos plot:
+
+
+```r
+plot(datos_censo$Any, datos_censo$Parelles)
+lines(
+  datos_censo$Any, 1.419e-108 * exp(0.129*datos_censo$Any),
+  col = 'red'
+)
+```
+
+
+---
+
+
+```r
+plot(datos_censo$Any, datos_censo$Parelles)
+lines(
+  datos_censo$Any, 1.419e-108 * exp(0.129*datos_censo$Any),
+  col = 'red'
+)
+```
+
+![](index_files/figure-html/plot_censo_real-1.png)&lt;!-- --&gt;
+
+---
+
+# Ejercicio 1.
+
+&gt;b. Calcular la tasa intrínseca de crecimiento poblacional (r) media para todo
+    el período y su desviación estándar.
+   
+Recordad,
+
+`$$N_{t+1} = \lambda·N_t \Rightarrow \lambda = \frac{N_{t+1}}{N_t}$$`
+
+y:
+
+$$ r = ln(\lambda)$$
+Así que:
+
+```r
+# calculamos lambda y R
+datos_censo_tasa_crecim &lt;- datos_censo %&gt;%
+  mutate(
+    lambda = Parelles/lag(Parelles),
+    r = log(lambda)
+  )
+```
+
+---
+
+# Ejercicio 1.
+
+&gt;b. Calcular la tasa intrínseca de crecimiento poblacional (r) media para todo
+    el período y su desviación estándar.
+
+
+```r
+datos_censo_tasa_crecim
+```
+
+```
+## # A tibble: 33 x 4
+##      Any Parelles lambda        r
+##    &lt;dbl&gt;    &lt;dbl&gt;  &lt;dbl&gt;    &lt;dbl&gt;
+##  1  1981       36 NA     NA      
+##  2  1982      200  5.56   1.71   
+##  3  1983      546  2.73   1.00   
+##  4  1984     1200  2.20   0.787  
+##  5  1985     1200  1      0      
+##  6  1986     2200  1.83   0.606  
+##  7  1987     1850  0.841 -0.173  
+##  8  1988     2861  1.55   0.436  
+##  9  1989     4266  1.49   0.400  
+## 10  1990     4300  1.01   0.00794
+## # … with 23 more rows
+```
+
+---
+
+# Ejercicio 1.
+
+&gt;b. Calcular la tasa intrínseca de crecimiento poblacional (r) media para todo
+    el período y su desviación estándar.
+
+
+```r
+# calculamos media y desviación
+datos_censo_tasa_crecim %&gt;%
+  summarise(
+    media = mean(r, na.rm = TRUE),
+    desvest = sd(r, na.rm = TRUE)
+  )
+```
+
+```
+## # A tibble: 1 x 2
+##   media desvest
+##   &lt;dbl&gt;   &lt;dbl&gt;
+## 1 0.198   0.421
+```
+---
+
+# Ejercicio 2.
+
+Realizar proyecciones del tamaño de una población que crece según el diagrama
+de transiciones siguiente (los números son las probabilidades de transición
+anuales para las **hembras**):
+
+&lt;img src="img/ejercicio_2_diagrama_transiciones.jpg" width="647" /&gt;
+
+
+Para ello, calcula el número de hembras previsto por los años 2010, 2020, ...
+2050 y representa los resultados gráficamente, tanto en cuanto a la evolución de
+la población total como para la de los diferentes estadios. Considera que la
+población inicial (año 2000) es de 300 hembras adultas.
+
+
+---
+
+# Ejercicio 2.
+
+&lt;img src="img/diagrama_transiciones_ejemplo.jpg" width="951" /&gt;
+
+
+`$$n_{1,t+1} = n_{1,t}·b_1 + n_{2,t}·b_2 + \ldots + n_{m,t}·b_m = \sum_{i = 1}^m n_{i,t}·b_i$$`
+
+`$$n_{2, t+1} = n_{1,t}·p_1$$`
+
+$$ \ldots $$
+
+---
+
+# Ejercicio 2.
+
+Si `\(n_{t+1} = \lambda·n_t\)`, entonces:
+
+`$$\left.\begin{array}{l} n_1 = \lambda·n_0 \\ n_2 = \lambda·n_1 = \lambda·\lambda·n_0 = \lambda^2·n_0 \\ n_3 = \lambda·n_2 = \lambda·\lambda^2·n_0 = \lambda^3·n_0 \\ n_4 = \lambda·n_3 = \lambda·\lambda^3·n_0 = \lambda^4·n_0 \\ \end{array}\right\} n_t = \lambda^t·n_0$$` 
+
+Así pues, podemos construir una matriz de poblaciones que multiplicado por las poblaciones iniciales para cada nivel de desarrollo nos de los valores
+para el siguiente punto temporal:
+
+`$$\begin{bmatrix}n_{1,t+1}\\n_{2,t+1}\\n_{3,t+1}\\n_{4,t+1}\end{bmatrix} = \begin{bmatrix} b_1 &amp; b_2 &amp; b_3 &amp; b_4\\ p_1 &amp; 0 &amp; 0 &amp; 0 \\ 0 &amp; p_2 &amp; 0 &amp; 0 \\ 0 &amp; 0 &amp; p_3 &amp; 0 \end{bmatrix} · \begin{bmatrix}n_{1,t}\\n_{2,t}\\n_{3,t}\\n_{4,t}\end{bmatrix}$$`
+
+---
+
+# Ejercicio 2.
+
+## ¿Cómo hacemos esto en R?
+
+Lo primero son las librerías que necesitaremos:
+
+```r
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+```
+
+---
+
+# Ejercicio 2.
+
+Lo siguiente es crear los datos. En este caso no tenemos un excel, así que
+tenemos que fabricarnos la matriz de poblaciones nosotros mismos a partir
+del esquema proporcionado:
+
+&lt;img src="img/ejercicio_2_diagrama_transiciones.jpg" width="647" /&gt;
+
+---
+
+&lt;img src="img/ejercicio_2_diagrama_transiciones.jpg" width="647" /&gt;
+
+
+
+```r
+matriz_pob_struc &lt;- matrix(c(
+  0, 0.01, 0.09, 0,
+  0.92, 0.86, 0, 0,
+  0, 0.08, 0.8, 0.83,
+  0, 0.02, 0.19, 0
+), nrow = 4, byrow = TRUE)
+
+matriz_pob_struc
+```
+
+```
+##      [,1] [,2] [,3] [,4]
+## [1,] 0.00 0.01 0.09 0.00
+## [2,] 0.92 0.86 0.00 0.00
+## [3,] 0.00 0.08 0.80 0.83
+## [4,] 0.00 0.02 0.19 0.00
+```
+
+---
+
+# Ejercicio 2.
+
+Lo mismo para la matriz de poblaciones incial (son 300 hembra adultas):
+
+
+```r
+matriz_inicial &lt;- matrix(c(
+  0,
+  0,
+  300,
+  0
+), nrow = 4, byrow = TRUE)
+
+matriz_inicial
+```
+
+```
+##      [,1]
+## [1,]    0
+## [2,]    0
+## [3,]  300
+## [4,]    0
+```
+
+Y ya tenemos listo los datos de partida
+
+---
+
+# Ejercicio 2.
+
+&gt; Para ello, calcula el número de hembras previsto por los años 2010, 2020, ...
+2050 y representa los resultados gráficamente, tanto en cuanto a la evolución de
+la población total como para la de los diferentes estadios. Considera que la
+población inicial (año 2000) es de 300 hembras adultas.
+
+Nuestro modelo para el año 2001 seria:
+
+`$$\begin{bmatrix}Crías_{2001}\\Inmad_{2001}\\Adultos_{2001}\\Madres_{2001}\end{bmatrix} = \begin{bmatrix} 0 &amp; 0.01 &amp; 0.09 &amp; 0\\ 0.92 &amp; 0.86 &amp; 0 &amp; 0 \\ 0 &amp; 0.08 &amp; 0.8 &amp; 0.83 \\ 0 &amp; 0.02 &amp; 0.19 &amp; 0 \end{bmatrix} · \begin{bmatrix}0\\0\\300\\0\end{bmatrix} = \begin{bmatrix}27\\0\\240\\57\end{bmatrix}$$`
+
+---
+
+# Ejercicio 2.
+
+&gt; Para ello, calcula el número de hembras previsto por los años 2010, 2020, ...
+2050 y representa los resultados gráficamente, tanto en cuanto a la evolución de
+la población total como para la de los diferentes estadios. Considera que la
+población inicial (año 2000) es de 300 hembras adultas.
+
+Podemos ver que esto es así multiplicando las matrices en R:
+
+
+```r
+res_2001 &lt;- matriz_pob_struc %*% matriz_inicial
+res_2001
+```
+
+```
+##      [,1]
+## [1,]   27
+## [2,]    0
+## [3,]  240
+## [4,]   57
+```
+
+---
+
+# Ejercicio 2.
+
+&gt; Para ello, calcula el número de hembras previsto por los años 2010, 2020, ...
+2050 y representa los resultados gráficamente, tanto en cuanto a la evolución de
+la población total como para la de los diferentes estadios. Considera que la
+población inicial (año 2000) es de 300 hembras adultas.
+
+Y por tanto, para 2002:
+
+`$$\begin{bmatrix}Crías_{2002}\\Inmad_{2002}\\Adultos_{2002}\\Madres_{2002}\end{bmatrix} = \begin{bmatrix} 0 &amp; 0.01 &amp; 0.09 &amp; 0\\ 0.92 &amp; 0.86 &amp; 0 &amp; 0 \\ 0 &amp; 0.08 &amp; 0.8 &amp; 0.83 \\ 0 &amp; 0.02 &amp; 0.19 &amp; 0 \end{bmatrix} · \begin{bmatrix}27\\0\\240\\57\end{bmatrix} = \begin{bmatrix}22\\25\\239\\46\end{bmatrix}$$`
+---
+
+# Ejercicio 2.
+
+&gt; Para ello, calcula el número de hembras previsto por los años 2010, 2020, ...
+2050 y representa los resultados gráficamente, tanto en cuanto a la evolución de
+la población total como para la de los diferentes estadios. Considera que la
+población inicial (año 2000) es de 300 hembras adultas.
+
+Podemos ver que esto es así multiplicando las matrices en R:
+
+
+```r
+res_2002 &lt;- matriz_pob_struc %*% res_2001
+res_2002
+```
+
+```
+##        [,1]
+## [1,]  21.60
+## [2,]  24.84
+## [3,] 239.31
+## [4,]  45.60
+```
+
+Pero tenemos que hacerlo hasta 2050, así que en R podemos hacer un pequeño
+bucle (loop) para que nos calcule todo.
+
+---
+
+# Ejercicio 2.
+
+&gt; Para ello, calcula el número de hembras previsto por los años 2010, 2020, ...
+2050 y representa los resultados gráficamente, tanto en cuanto a la evolución de
+la población total como para la de los diferentes estadios. Considera que la
+población inicial (año 2000) es de 300 hembras adultas.
+
+
+```r
+matriz_final &lt;- matriz_inicial
+for (time_step in 1:50) {
+  matriz_final &lt;- cbind(
+    matriz_final,
+    round(matriz_pob_struc %*% matriz_final[,time_step], 0)
+  )
+}
+matriz_final
+```
+
+```
+##      [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10] [,11] [,12] [,13]
+## [1,]    0   27   22   22   21   21   21   21   21    21    21    21    21
+## [2,]    0    0   25   42   56   67   77   86   93    99   104   109   113
+## [3,]  300  240  239  231  226  223  220  219  218   218   218   218   220
+## [4,]    0   57   46   46   45   44   44   43   43    43    43    44    44
+##      [,14] [,15] [,16] [,17] [,18] [,19] [,20] [,21] [,22] [,23] [,24] [,25]
+## [1,]    21    21    21    21    22    22    22    22    22    23    23    23
+## [2,]   116   119   122   124   126   129   131   133   135   136   138   140
+## [3,]   222   223   224   226   228   230   232   234   237   239   242   244
+## [4,]    44    44    45    45    45    46    46    47    47    48    48    49
+##      [,26] [,27] [,28] [,29] [,30] [,31] [,32] [,33] [,34] [,35] [,36] [,37]
+## [1,]    23    24    24    24    25    25    25    25    26    26    26    27
+## [2,]   142   143   145   147   148   150   152   154   155   157   159   161
+## [3,]   247   250   253   256   259   262   265   268   271   274   277   280
+## [4,]    49    50    50    51    52    52    53    53    54    55    55    56
+##      [,38] [,39] [,40] [,41] [,42] [,43] [,44] [,45] [,46] [,47] [,48] [,49]
+## [1,]    27    27    27    28    28    28    29    29    29    30    30    30
+## [2,]   163   165   167   168   170   172   174   176   178   180   182   184
+## [3,]   283   286   289   293   296   299   303   306   310   314   317   320
+## [4,]    56    57    58    58    59    60    60    61    62    62    63    64
+##      [,50] [,51]
+## [1,]    31    31
+## [2,]   186   188
+## [3,]   324   327
+## [4,]    64    65
+```
+
+---
+
+# Ejercicio 2.
+
+&gt; Para ello, calcula el número de hembras previsto por los años 2010, 2020, ...
+2050 y representa los resultados gráficamente, tanto en cuanto a la evolución de
+la población total como para la de los diferentes estadios. Considera que la
+población inicial (año 2000) es de 300 hembras adultas.
+
+Podemos mejorar un poco el output, para verlo mejor
+
+
+```r
+datos_finales &lt;- t(matriz_final) %&gt;%
+  as.data.frame()
+names(datos_finales) &lt;- c('Crias', 'Inmaduros', 'Adultos', 'Madres')
+datos_finales &lt;- datos_finales %&gt;%
+  mutate(
+    Total = Crias + Inmaduros + Adultos + Madres,
+    Año = 2000:2050
+  ) %&gt;%
+  pivot_longer(cols = Crias:Total, names_to = 'Stage')
+datos_finales
+```
+
+---
+
+
+```r
+datos_finales &lt;- t(matriz_final) %&gt;%
+  as.data.frame()
+names(datos_finales) &lt;- c('Crias', 'Inmaduros', 'Adultos', 'Madres')
+datos_finales &lt;- datos_finales %&gt;%
+  mutate(
+    Total = Crias + Inmaduros + Adultos + Madres,
+    Año = 2000:2050
+  ) %&gt;%
+  pivot_longer(cols = Crias:Total, names_to = 'Stage')
+datos_finales
+```
+
+```
+## # A tibble: 255 x 3
+##      Año Stage     value
+##    &lt;int&gt; &lt;chr&gt;     &lt;dbl&gt;
+##  1  2000 Crias         0
+##  2  2000 Inmaduros     0
+##  3  2000 Adultos     300
+##  4  2000 Madres        0
+##  5  2000 Total       300
+##  6  2001 Crias        27
+##  7  2001 Inmaduros     0
+##  8  2001 Adultos     240
+##  9  2001 Madres       57
+## 10  2001 Total       324
+## # … with 245 more rows
+```
+
+---
+
+# Ejercicio 2.
+
+&gt; Para ello, calcula el número de hembras previsto por los años 2010, 2020, ...
+2050 y representa los resultados gráficamente, tanto en cuanto a la evolución de
+la población total como para la de los diferentes estadios. Considera que la
+población inicial (año 2000) es de 300 hembras adultas.
+
+Ahora podemos graficar:
+
+
+```r
+datos_finales %&gt;%
+  ggplot(
+    aes(x = Año, y = value, color = Stage)
+  ) +
+  geom_point()
+```
+
+
+---
+
+
+```r
+datos_finales %&gt;%
+  ggplot(
+    aes(x = Año, y = value, color = Stage)
+  ) +
+  geom_point()
+```
+
+![](index_files/figure-html/estruc_plot_2-1.png)&lt;!-- --&gt;
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
